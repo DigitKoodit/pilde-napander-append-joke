@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@googleapis/sheets": "^0.3.0",
+    "google-auth-library": "^7.14.0",
+    "yup": "^0.32.11"
+  }
+}
