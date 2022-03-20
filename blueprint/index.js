@@ -1,6 +1,3 @@
-'use strict'
-
-const fs = require('fs')
 const gSheets = require('@googleapis/sheets')
 const auth = require('google-auth-library')
 const yup = require('yup')
@@ -15,9 +12,6 @@ exports.handler = async (event) => {
   }
   if(!API_KEY) {
     errors.push(`Missing API_KEY env variable`)
-  }
-  if(!fs.existsSync(PATH_CREDENTIALS)) {
-    errors.push(`Missing credentials file: ${PATH_CREDENTIALS}`)
   }
 
   try {
@@ -42,12 +36,12 @@ const parseResponse = (data, isError) => {
     ? { message: data.message, ...data }
     : { data }
 
-  console.log(data, body)
   return {
     statusCode: isError ? 400 : 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Credentials': true,
+      'Access-Control-Allow-Methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT ',
       'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
       'Content-Type': 'application/json'
     },
@@ -56,9 +50,7 @@ const parseResponse = (data, isError) => {
 }
 
 // Validation
-
 const getTypeString = type => {
-  // eslint-disable-next-line default-case
   switch(type) {
     case 'number':
       return 'numero'
@@ -73,7 +65,6 @@ const getTypeString = type => {
   }
 }
 
-/* eslint-disable no-template-curly-in-string */
 yup.setLocale({
   mixed: {
     default: '${path} on virheellinen',
@@ -84,14 +75,8 @@ yup.setLocale({
   },
   number: {
     default: '${path} pitää olla numero',
-    integer: '${path} pitää olla kokonaisluku',
     min: '${path} pitää olla vähintään ${min}',
-    max: '${path} saa olla enintään ${max}',
-    lessThan: '${path} pitää olla vähemmän kuin ${less}',
-    moreThan: '${path} pitää olla enemmän kuin ${more}',
-    notEqual: '${path} ei saa olla ${notEqual}',
-    positive: '${path} pitää olla positiivinen numero',
-    negative: '${path} pitää olla negatiivinen numero'
+    max: '${path} saa olla enintään ${max}'
   },
   string: {
     length: '${path} pitää olla ${length} merkkiä pitkä',
@@ -99,19 +84,7 @@ yup.setLocale({
     max: '${path} saa olla enintään ${max} merkkiä pitkä',
     matches: '${path} pitää olla seuraavaa muotoa: "${regex}"',
     email: '${path} pitää olla sähköpostimuotoa',
-    url: '${path} pitää olla kelvollinen URL',
-    uuid: '${path} pitää olla kelvollinen UUID',
-    trim: '${path} ei saa alkaa tai päättyä välilyöntiin',
-    lowercase: '${path} pitää olla pienillä kirjaimilla',
-    uppercase: '${path} pitää olla isoilla kirjaimilla'
   },
-  object: {
-    noUnknown: '${path} sisältää virheellisiä avaimia: ${unknown}'
-  },
-  array: {
-    min: '${path} pitää sisältää vähintään ${min} kohdetta',
-    max: '${path} pitää sisältää enintään ${max} kohdetta'
-  }
 })
 
 const guilds = [
@@ -124,8 +97,8 @@ const guilds = [
 
 const schema = yup.object()
   .shape({
-    joke: yup.string().defined().min(1).label('Vitsi').required(),
-    email: yup.string().defined().min(3).email().label('Sähköpostiosoite'),
+    joke: yup.string().defined().trim().min(1).max(3000).label('Vitsi').required(),
+    email: yup.string().defined().email().max(100).label('Sähköpostiosoite'),
     guild: yup.string().defined().label('Kilta').oneOf(guilds),
     isFuksi: yup.boolean().defined().label('Olen fuksi'),
   })
@@ -152,7 +125,7 @@ const appendSheet = columns => {
 }
 
 const getJwt = () => {
-  const credentials = require("./credentials.json")
+  const credentials = require(PATH_CREDENTIALS)
   return new auth.JWT(
     credentials.client_email, null, credentials.private_key,
     ['https://www.googleapis.com/auth/spreadsheets']
@@ -169,7 +142,7 @@ const appendSheetRow = (jwt, apiKey, spreadsheetId, range, row) => {
       key: apiKey,
       valueInputOption: 'RAW',
       resource: { values: [row] }
-    }, function(err, result) {
+    }, (err, result) => {
       if(err) {
         console.dir(err, { depth: null })
         reject(err)
