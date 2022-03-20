@@ -1,3 +1,5 @@
+'use strict'
+
 const fs = require('fs')
 const gSheets = require('@googleapis/sheets')
 const auth = require('google-auth-library')
@@ -6,51 +8,50 @@ const yup = require('yup')
 const { SPREADSHEET_ID, API_KEY } = process.env
 const PATH_CREDENTIALS = './credentials.json'
 
-let errors = []
-if(!SPREADSHEET_ID) {
-  errors.push('Missing SPREADSHEET_ID env variable')
-}
-if(!API_KEY) {
-  errors.push(`Missing API_KEY env variable`)
-}
-if(!fs.existsSync(PATH_CREDENTIALS)) {
-  errors.push(`Missing credentials file: ${PATH_CREDENTIALS}`)
-}
+exports.handler = async (event) => {
+  let errors = []
+  if(!SPREADSHEET_ID) {
+    errors.push('Missing SPREADSHEET_ID env variable')
+  }
+  if(!API_KEY) {
+    errors.push(`Missing API_KEY env variable`)
+  }
+  if(!fs.existsSync(PATH_CREDENTIALS)) {
+    errors.push(`Missing credentials file: ${PATH_CREDENTIALS}`)
+  }
 
-if(errors.length) {
-  throw new Error(errors.join('\n'))
-}
-
-exports.handler = (data, context, callback) => {
   try {
-    return validate(data)
-      .then(sanitized => {
-        const columns = parseToSheets(sanitized)
-        return appendSheet(columns)
-          .then(result => {
-            return callback(null, parseResponse('OK'))
-          })
-          .catch(error => {
-            return callback(parseResponse(error))
-          })
-      })
+    if(errors.length) {
+      throw new Error(errors.join('\n'))
+    }
+    if(!event.body) {
+      throw new Error('No request body')
+    }
+
+    const sanitized = await validate(event.body)
+    const columns = parseToSheets(sanitized)
+    await appendSheet(columns)
+    return parseResponse('OK')
   } catch(error) {
-    return callback(parseResponse(error))
+    return parseResponse(error, true)
   }
 }
 
-const parseResponse = (message, isError) => {
+const parseResponse = (data, isError) => {
+  const body = data instanceof Error
+    ? { message: data.message, ...data }
+    : { data }
+
+  console.log(data, body)
   return {
     statusCode: isError ? 400 : 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Credentials': true,
-      'Access-Control-Allow-Headers': 'Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
       'Content-Type': 'application/json'
     },
-    body: {
-      message
-    }
+    body: JSON.stringify(body)
   }
 }
 
