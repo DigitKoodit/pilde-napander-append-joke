@@ -83,7 +83,7 @@ yup.setLocale({
     min: '${path} pitää olla vähintään ${min} merkkiä pitkä',
     max: '${path} saa olla enintään ${max} merkkiä pitkä',
     matches: '${path} pitää olla seuraavaa muotoa: "${regex}"',
-    email: '${path} pitää olla sähköpostimuotoa',
+    email: '${path} on virheellinen',
   },
 })
 
